@@ -9,11 +9,17 @@ import csv
 import os
 import sys
 import re
+import nltk
 
 import numpy as np
 import pandas as pd
 
 from collections import Counter
+from tqdm import tqdm
+
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('vader_lexicon')
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 main_data_dir = os.path.join(dir_path, 'TXT')
@@ -81,9 +87,25 @@ def preprocess_speech(data):
     :return:
     """
 
+    # put all characters in lower case
     data = data.lower()
 
-    return data
+    # only keep the tokens of the data
+    data = nltk.word_tokenize(data)
+
+    # remove stop words and non-alphabetic stuff from all the text
+    sw = nltk.corpus.stopwords.words("english")
+    no_sw = np.empty(len(data), dtype = str)
+
+    i = 0
+    for w in data:
+        if (w not in sw) and w.isalpha():
+            no_sw[i] = w
+            i += 1
+
+    no_sw = np.trim_zeros(no_sw)
+
+    return no_sw
 
 
 if __name__ == '__main__':
@@ -98,15 +120,14 @@ if __name__ == '__main__':
         files_without_dot = [file for file in files if not file.startswith('.')]
 
         # loop through files and extract data
-        for file in files_without_dot:
+        for file in tqdm(files_without_dot):
             country, session_nr, year = file.replace('.txt', '').split('_')
 
             # open a speech with the correct formatting
             speech_data = open_speech(os.path.join(root, file))
 
             # preprocess the data
-            preprocessed_speech = preprocess_speech(speech_data)
-            preprocessed_bag_of_words = preprocessed_speech.split(' ')
+            preprocessed_bag_of_words = preprocess_speech(speech_data)
 
             # calculate all the features through functions
             word_count = count_total_words(preprocessed_bag_of_words)

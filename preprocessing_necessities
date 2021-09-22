@@ -1,3 +1,8 @@
 line numbers in the first couple of years should be removed (if possible, seems to be little consistency)
 stop words should be removed
 words should be rewritten to their base instead of their conjugates
+missing values:
+    - missing countries per year
+    -
+Outliers in number of words
+
