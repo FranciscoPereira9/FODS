@@ -18,14 +18,13 @@ from collections import Counter
 dir_path = os.path.dirname(os.path.realpath(__file__))
 main_data_dir = os.path.join(dir_path, 'TXT')
 
-speeches_df = pd.DataFrame(columns=['session_nr', 'year', 'country', 'word_count'])
-
 
 def count_most_used_words(data, n):
     """
     This functions a list of the n most used words with their occurrence rate
-    :param data:
-    :return:
+    :param data: the string to gather the word occurrences from
+    :param n: number of most used words in the speeches
+    :return: two lists, first with the most occurring words and then their occurrence rate
     """
 
     occ_words = Counter(data).most_common(n)
@@ -35,6 +34,18 @@ def count_most_used_words(data, n):
 
     return words, counts
 
+
+def count_specific_words(data, words):
+    """
+    This function creates a list of the occurrences of a specific set of words
+    :param data: the string to gather the word occurrences from
+    :param words: the words to look for in the string
+    :return: a list containing the occurrences of the words in order
+    """
+
+    occ_words = Counter(data)
+    occ_words_in_question = [occ_words[word] for word in words]
+    return occ_words_in_question
 
 def count_total_words(data):
     """ This function purely counts the number of words a piece of text
@@ -77,6 +88,8 @@ def preprocess_speech(data):
 
 if __name__ == '__main__':
 
+    speeches_df = pd.DataFrame(columns=['session_nr', 'year', 'country', 'word_count'])
+
     # loop through all directories of the data
     for root, subdirectories, files in os.walk(main_data_dir):
 
@@ -98,6 +111,7 @@ if __name__ == '__main__':
             # calculate all the features through functions
             word_count = count_total_words(preprocessed_bag_of_words)
             most_used_words = count_most_used_words(preprocessed_bag_of_words, 20)
+            occs_of_spec_words = count_specific_words(preprocessed_bag_of_words, ['economy'])
 
             # append the line of features to the dataframe
             speeches_df = speeches_df.append({'session_nr': session_nr, 'year': year, 'country':country, 'word_count':
