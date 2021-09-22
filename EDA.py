@@ -7,10 +7,13 @@ Authors:
 
 import csv
 import os
+import sys
+import re
 
 import numpy as np
 import pandas as pd
 
+from collections import Counter
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 main_data_dir = os.path.join(dir_path, 'TXT')
@@ -18,15 +21,29 @@ main_data_dir = os.path.join(dir_path, 'TXT')
 speeches_df = pd.DataFrame(columns=['session_nr', 'year', 'country', 'word_count'])
 
 
-def count_words(data):
+def count_most_used_words(data, n):
+    """
+    This functions a list of the n most used words with their occurrence rate
+    :param data:
+    :return:
+    """
+
+    occ_words = Counter(data).most_common(n)
+
+    words = [occ_tup[0] for occ_tup in occ_words]
+    counts = [occ_tup[1] for occ_tup in occ_words]
+
+    return words, counts
+
+
+def count_total_words(data):
     """ This function purely counts the number of words a piece of text
 
     :param file: a piece of text to count the number of words from
     :return: the word count
     """
 
-    words = data.split()
-    word_count = len(words)
+    word_count = len(data)
 
     return word_count
 
@@ -38,13 +55,22 @@ def open_speech(file_path):
     :return:
     """
 
-    file = open(file_path, encoding="utf8")
+    file = open(file_path, encoding="utf-8-sig")
     data = file.read()
 
     return data
 
 
+
+
 def preprocess_speech(data):
+    """
+    This function does the preprocessing
+    :param data:
+    :return:
+    """
+
+    data = data.lower()
 
     return data
 
@@ -65,19 +91,16 @@ if __name__ == '__main__':
             # open a speech with the correct formatting
             speech_data = open_speech(os.path.join(root, file))
 
-            print(year)
-            print(speech_data[0:100])
-
-            break
-
             # preprocess the data
             preprocessed_speech = preprocess_speech(speech_data)
+            preprocessed_bag_of_words = preprocessed_speech.split(' ')
 
             # calculate all the features through functions
-            word_count = count_words(preprocessed_speech)
+            word_count = count_total_words(preprocessed_bag_of_words)
+            most_used_words = count_most_used_words(preprocessed_bag_of_words, 20)
 
             # append the line of features to the dataframe
             speeches_df = speeches_df.append({'session_nr': session_nr, 'year': year, 'country':country, 'word_count':
-                                             word_count}, ignore_index=True,)
+                                             word_count}, ignore_index=True)
 
     print(speeches_df)
