@@ -173,16 +173,21 @@ def preprocess_speech(data):
 
     return no_sw
 
+def determine_average_sentence_length(speech_data):
+    sentence_lengths = [len(sentence) for sentence in speech_data.split('\n')]
+
+    return np.mean(sentence_lengths)
+
 
 if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
     # dataframe file (always have to do a preprocessing run to save the dataframe of course)
-    do_preprocessing = False
+    do_preprocessing = True
 
     if do_preprocessing:
         speeches_df = pd.DataFrame(columns=['session_nr', 'year', 'country', 'word_count', 'pos_sentiment',
-                                            'neu_sentiment', 'neg_sentiment'])
+                                            'neu_sentiment', 'neg_sentiment', 'average_sentence_length'])
 
         num_directories = len(next(os.walk(main_data_dir))[1])
 
@@ -208,6 +213,7 @@ if __name__ == '__main__':
                 most_used_words = count_most_used_words(preprocessed_bag_of_words, 20)
                 occs_of_spec_words = count_specific_words(preprocessed_bag_of_words, ['economy'])
                 sentiment_of_speech = determine_sentiment(speech_data)
+                average_sentence_length = determine_average_sentence_length(speech_data)
 
                 # append the line of features to the dataframe
                 speeches_df = speeches_df.append({'session_nr': int(session_nr),
@@ -216,7 +222,9 @@ if __name__ == '__main__':
                                                   'word_count':word_count,
                                                   'pos_sentiment': sentiment_of_speech['pos'],
                                                   'neu_sentiment': sentiment_of_speech['neu'],
-                                                  'neg_sentiment': sentiment_of_speech['neg']
+                                                  'neg_sentiment': sentiment_of_speech['neg'],
+                                                  'average_sentence_length': average_sentence_length,
+                                                  'speech': speech_data
                                                   },
                                                  ignore_index=True)
 
@@ -237,7 +245,8 @@ if __name__ == '__main__':
     speeches_df = pd.read_csv('preprocessed_dataframe.csv')
 
 
-    corr_cols = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'neu_sentiment']
+    corr_cols = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'neu_sentiment', 'average_sentence_length',
+                 "Life Ladder", "Log GDP per capita"]
     plot_correlation_matrix(speeches_df, corr_cols)
 
     # plot some figures from the data
