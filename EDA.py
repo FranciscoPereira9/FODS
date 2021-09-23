@@ -14,6 +14,7 @@ import nltk
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from collections import Counter
 from tqdm import tqdm
@@ -64,6 +65,19 @@ def plot_sentiment_country_vs_year(country_code):
     plt.savefig('{}_sentiment_development.png'.format(country_code), dpi=300)
     plt.show()
 
+
+def plot_correlation_matrix(speeches_df, corr_cols):
+    """
+    This function creates a correlation matrix of specific columns from the speeches df
+    :param speeches_df: dataframe containing all the information about the speeches
+    :param corr_cols: a list of columns that we cant to calculate the correlation for
+    :return:
+    """
+
+    plt.figure()
+    sns.heatmap(speeches_df.loc[:, corr_cols].corr(),
+                annot = True, vmin=-1, vmax=1, center= 0)
+    plt.show()
 
 def count_most_used_words(data, n):
     """
@@ -164,7 +178,7 @@ if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
     # dataframe file (always have to do a preprocessing run to save the dataframe of course)
-    do_preprocessing = True
+    do_preprocessing = False
 
     if do_preprocessing:
         speeches_df = pd.DataFrame(columns=['session_nr', 'year', 'country', 'word_count', 'pos_sentiment',
@@ -221,6 +235,10 @@ if __name__ == '__main__':
 
     # get into the exploration after reading the saved file
     speeches_df = pd.read_csv('preprocessed_dataframe.csv')
+
+
+    corr_cols = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'neu_sentiment']
+    plot_correlation_matrix(speeches_df, corr_cols)
 
     # plot some figures from the data
     plot_sentiment_country_vs_year('NLD')
