@@ -174,6 +174,28 @@ def determine_average_sentence_length(speech_data):
     return np.mean(sentence_lengths)
 
 
+def remove_line_number(speech):
+    '''
+    removes the line number at the beginning of speech
+    
+    Parameters
+    ---------
+    speech : str
+        piece of text
+     '''
+    
+    pattern = "\n|^\d+.*?(\w)"
+    speech = re.sub(pattern, "\n\g<1>", speech)
+    pattern = "\t"
+    speech = re.sub(pattern, "", speech)
+    pattern = "\n\n"
+    speech = re.sub(pattern, "\n", speech)
+    pattern = "^\n *"
+    speech = re.sub(pattern, "", speech)
+    
+    return speech
+
+remove_line_number(speech)
 if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
@@ -219,7 +241,7 @@ if __name__ == '__main__':
                                                   'neu_sentiment': sentiment_of_speech['neu'],
                                                   'neg_sentiment': sentiment_of_speech['neg'],
                                                   'average_sentence_length': average_sentence_length,
-                                                  'speech': speech_data
+                                                  'speech': remove_line_number(speech_data)
                                                   },
                                                  ignore_index=True)
 
