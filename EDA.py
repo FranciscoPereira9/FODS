@@ -195,7 +195,6 @@ def remove_line_number(speech):
     
     return speech
 
-remove_line_number(speech)
 if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
