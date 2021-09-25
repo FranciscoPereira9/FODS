@@ -161,15 +161,10 @@ def preprocess_speech(data):
 
     # remove stop words and non-alphabetic stuff from all the text
     sw = nltk.corpus.stopwords.words("english")
-    no_sw = np.empty(len(data), dtype = str)
-
-    i = 0
+    no_sw = []
     for w in data:
         if (w not in sw) and w.isalpha():
-            no_sw[i] = w
-            i += 1
-
-    no_sw = np.trim_zeros(no_sw)
+            no_sw.append(w)
 
     return no_sw
 
