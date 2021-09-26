@@ -254,6 +254,24 @@ def check_isocode_consistency(speeches_df,df_codes):
     speech_codes = set(speeches_df['country'].unique())
     iso_codes = set(df_codes['ISO-alpha3 Code'].unique())
     print(f"The following codes in speeches_df do not appear in df_codes: {speech_codes - iso_codes}")
+    
+    
+def interpolate(df, col, country):
+    minidf = pd.DataFrame({col : df[col].loc[:,country].interpolate(method='slinear')})
+    minidf['country'] = country
+    minidf = minidf.reset_index()
+    minidf.set_index(['year', 'country'], inplace=True)
+    return df.update(minidf)
+   
+def multi_interpolate(df, columns, countries):
+    for country in tqdm(countries):
+        for column in columns:
+            try:
+                interpolate(df, column, country)
+            except:
+                print(f"FAIL: {country} : {column}")
+    return df
+
 if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
@@ -335,3 +353,31 @@ if __name__ == '__main__':
     # plot some figures from the data
     plot_sentiment_country_vs_year('NLD')
     plot_sentiment_country_vs_year('USA')
+
+    
+    # interpolation for missing values in happiness df columns
+
+    countries = speeches_df.reset_index()['country'].unique()
+    cols = ['Life Ladder', 'Log GDP per capita', 'Social support',
+            'Healthy life expectancy at birth', 'Freedom to make life choices',
+            'Generosity', 'Perceptions of corruption', 'Positive affect', 
+            'Negative affect']
+
+    speeches_df.set_index(['year','country'], inplace=True)
+
+    #plot before interpolating
+    fig, axs = plt.subplots()
+    speeches_df['Log GDP per capita'].loc[:,'CYP'].plot(ax=axs, style = '.')
+    axs.set_ylabel('Log GDP per capita')
+    axs.set_title("Cyprus")
+    plt.show()
+
+    multi_interpolate(speeches_df, cols, countries)
+
+    #plot after interpolating
+    fig, axs = plt.subplots()
+    speeches_df['Log GDP per capita'].loc[:,'CYP'].plot(ax=axs, style = '.')
+    axs.set_ylabel('Log GDP per capita')
+    axs.set_title("Cyprus")
+    plt.show()
+
