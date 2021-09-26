@@ -224,7 +224,7 @@ def happiness_df_cleanup(happiness_df):
          'Palestinian Territories' :  'State of Palestine',
          'Tanzania' :  'United Republic of Tanzania',
          'Syria' : 'Syrian Arab Republic',
-         'North Cyprus' :  'Cyprus',
+         'North Cyprus' :  None,
          'Bolivia' : 'Bolivia (Plurinational State of)',
          'Congo (Kinshasa)' : 'Democratic Republic of the Congo',
         'Venezuela': 'Venezuela (Bolivarian Republic of)',
