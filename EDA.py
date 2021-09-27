@@ -279,7 +279,7 @@ def preprocess_speech_(speech):
     :param file: string
     :return: list of lowercase words
     """
-    words = word_tokenize(speech)
+    words = nltk.word_tokenize(speech)
     r = []
     for w in words:
         r.append(w.lower())
@@ -314,7 +314,7 @@ def count_referenced_countries(data, countries, years):
             s = str(i) + "_ref_count_" + str(y)
             year[s] = year.apply(lambda row: count_list_occurences(row['processed_speech'], i), axis=1) #only looks for usa, not united states, america etc
             print("# references", i, '(', y, ')', sum(year[s]))
-            s1 = "bool_" + str(i) + "_ref" + str(y)
+            s1 = "bool_" + str(i) + "_ref_" + str(y)
             year[s1] = np.where(year[s]== 0, False, True)
             print("# speeches referencing", i, '(', y, ')', sum(year[s1]))
             
