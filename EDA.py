@@ -272,6 +272,53 @@ def multi_interpolate(df, columns, countries):
                 print(f"FAIL: {country} : {column}")
     return df
 
+def preprocess_speech_(speech):
+    """ This function tokenizes (splits in words and eliminate
+    punctuation) and lowercases the speech
+
+    :param file: string
+    :return: list of lowercase words
+    """
+    words = word_tokenize(speech)
+    r = []
+    for w in words:
+        r.append(w.lower())
+    return r
+
+def count_list_occurences(list, x):
+    """ This function counts the number of times an element appears
+    in a list
+
+    :param file: a list and an element
+    :return: the number of times the element appeared in list
+    """
+    counter = 0
+    for i in list:
+        if x == i:
+            counter += 1
+    return counter
+
+def count_referenced_countries(data, countries, years):
+    """ This function iterates over the speeches in the selected years
+    and counts the number of times each country appeared in each speech,
+    and the number of speeches that mentioned the respective country
+    
+    :param file: the dataframe, a list of countries and years
+    :return: the number of references of each country per year and
+    the number of speeches referencing the respective country per year
+    """
+    for y in years:
+        year = data.loc[(y)]
+        year['processed_speech'] = year.apply(lambda row: preprocess_speech_(row['Speech']), axis=1)
+        for i in countries:
+            s = str(i) + "_ref_count_" + str(y)
+            year[s] = year.apply(lambda row: count_list_occurences(row['processed_speech'], i), axis=1) #only looks for usa, not united states, america etc
+            print("# references", i, '(', y, ')', sum(year[s]))
+            s1 = "bool_" + str(i) + "_ref" + str(y)
+            year[s1] = np.where(year[s]== 0, False, True)
+            print("# speeches referencing", i, '(', y, ')', sum(year[s1]))
+            
+
 if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
@@ -345,6 +392,20 @@ if __name__ == '__main__':
     # get into the exploration after reading the saved file
     speeches_df = pd.read_csv('preprocessed_dataframe.csv')
 
+    # number of covid and covid synonyms mentions in 2020 speeches
+    # x = df.loc[(2020)] 
+    # x['processed_speech'] = x.apply(lambda row: preprocess_speech_(row['Speech']), axis=1)
+    # x['covid'] = x.apply(lambda row: count_list_occurences(row['processed_speech'], 'covid-19')+count_list_occurences(row['processed_speech'], 'corona')+count_list_occurences(row['processed_speech'], 'coronavirus')+count_list_occurences(row['processed_speech'], 'sars-cov-2'), axis=1)
+    # print("# of times coronavirus was mentioned in China's 2020 speech:", x['covid'].loc['CHN'])
+    
+    # number of exclamation marks
+    # df['exclamation_marks'] = df.apply(lambda row: row['Speech'].count('!'), axis=1)
+    # print("# of exclamations marks in China's 2020 speech:", df['exclamation_marks'].loc[(2020, 'CHN')])
+    
+    # countries_ = ['usa', 'china']
+    # years_ = [2017, 2018, 2019, 2020]
+    # count_referenced_countries(df, countries_, years_) #only looks for usa, not united states, america etc; they can be added to countries_ and then summed tohether
+    
 
     corr_cols = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'neu_sentiment', 'average_sentence_length',
                  "Life Ladder", "Log GDP per capita"]
