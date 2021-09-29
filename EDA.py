@@ -23,6 +23,7 @@ from tqdm import tqdm
 from nltk.sentiment import SentimentIntensityAnalyzer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.spatial.distance import cdist
+from pywsd.utils import lemmatize_sentence
 
 
 # nltk.download('punkt')
@@ -180,22 +181,45 @@ def k_means_clustering(data_df, true_k, elbow_plot):
     """
 
     data_to_cluster = data_df['speech'].values
+    sentences = pd.DataFrame(index=range(8500*200), columns=['sentence'])
+    i = 0
+    for speech_to_split in tqdm(data_to_cluster, desc='lemmatising speech: '):
+        sentences_speech = nltk.sent_tokenize(speech_to_split)
+        print(len(sentences_speech))
+
+        for sentence in sentences_speech:
+            lemmas = lemmatize_sentence(sentence)
+            lemmatized_sentence = ' '.join(word for word in lemmas)
+            sentences.iloc[i,0] = lemmatized_sentence
+
+            i += 1
+
+        if i > 30000:
+            break
+
+    sentences.dropna(inplace=True)
+    print(sentences)
+    sentences.to_csv('lemmatized_sentences.csv', sep=';')
+    data_to_cluster = sentences['sentence'].values
+    # data_to_cluster = [speech_to_split.split('.') for speech_to_split in data_to_cluster]
+    # data_to_cluster = sum(data_to_cluster, [])
+    # data_to_cluster = np.array(data_to_cluster)
+    # print(data_to_cluster)
 
     # data_to_cluster_tokenised = data_df['speech'].apply(lambda x: nltk.word_tokenize(x))
 
     vectorizer = TfidfVectorizer(stop_words='english')
     X = vectorizer.fit_transform(data_to_cluster)
-    print(type(X))
-    model = KMeans(n_clusters=true_k, init='k-means++', max_iter=300, n_init=1)
-    model.fit(X)
-
-    order_centroids = model.cluster_centers_.argsort()[:, ::-1]
-    terms = vectorizer.get_feature_names()
-
-    for i in range(true_k):
-        print("Cluster % d:" % i),
-        for ind in order_centroids[i, :10]:
-            print(' % s' % terms[ind])
+    # model = KMeans(n_clusters=true_k, init='k-means++', max_iter=300, n_init=1, verbose=1)
+    # model.fit(X)
+    #
+    # order_centroids = model.cluster_centers_.argsort()[:, ::-1]
+    # terms = vectorizer.get_feature_names()
+    #
+    # for i in range(true_k):
+    #     print("Cluster % d:" % i),
+    #     for ind in order_centroids[i, :10]:
+    #         print(' % s' % terms[ind])
 
 
     if elbow_plot:
@@ -203,10 +227,10 @@ def k_means_clustering(data_df, true_k, elbow_plot):
         inertias = []
         mapping1 = {}
         mapping2 = {}
-        K = np.arange(1, 500, 50)
+        K = np.arange(1, 40, 2)
 
         for k in tqdm(K, desc='K means elbow plot'):
-            model = KMeans(n_clusters=k, init='k-means++', max_iter=300, n_init=1)
+            model = KMeans(n_clusters=k, init='random', max_iter=300, n_init=1, verbose=1, tol=1)
             model.fit(X)
 
             distortions.append(sum(np.min(sklearn.metrics.pairwise.pairwise_distances(X, model.cluster_centers_,
@@ -385,7 +409,7 @@ if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
     # dataframe file (always have to do a preprocessing run to save the dataframe of course)
-    do_preprocessing = True
+    do_preprocessing = False
 
     if do_preprocessing:
         speeches_df = pd.DataFrame(columns=['session_nr', 'year', 'country', 'word_count', 'pos_sentiment',
@@ -461,7 +485,7 @@ if __name__ == '__main__':
 
     # do k_means clustering
     true_k = 8
-    elbow_plot = False
+    elbow_plot = True
     k_means_clustering(speeches_df, true_k, elbow_plot)
     # number of covid and covid synonyms mentions in 2020 speeches
     # x = df.loc[(2020)]
