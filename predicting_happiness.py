@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-import lightgbm as ltb
+import lightgbm as lgb
 import matplotlib.pyplot as plt
 
 from sklearn import metrics
-from sklearn.model_selection import KFold, GridSearchCV
+from sklearn.model_selection import KFold, GridSearchCV, train_test_split
 
 
 def k_fold_evaluation(speeches_df, model, n_splits, features, predictable):
@@ -45,25 +45,52 @@ def model_gridsearch(speeches_df, model, n_splits, gridParams, features, predict
 
     return grid.best_params_
 
+def test_set_evaluation(speeches_df_train, speeches_df_test, model_test, features, predictable):
+
+    # we split the training set so that we can prevent overfitting of the model
+    speeches_df_train, speeches_df_validation = train_test_split(speeches_df_train, test_size=0.2, shuffle=True,
+                                                                 random_state=42)
+
+    model_test.fit(speeches_df_train[features], speeches_df_train[predictable],
+                   eval_set=[(speeches_df_validation[features], speeches_df_validation[predictable]),
+                             (speeches_df_train[features], speeches_df_train[predictable])],
+                   early_stopping_rounds=10, verbose=5)
+
+
+    expected_y = speeches_df_test[predictable]
+    predicted_y = lgbm_model.predict(speeches_df_test[features])
+
+
+    print('Plot metrics during training...')
+    ax = lgb.plot_metric(model_test.evals_result_, metric='l2')
+    plt.show()
+
+    ax = lgb.plot_importance(model_test, max_num_features=10)
+    plt.show()
+
+
+    print('The R2 score on the test set: ', metrics.r2_score(expected_y, predicted_y))
+    print('The MSE score on the test set: ', metrics.mean_squared_error(expected_y, predicted_y))
 
 
 # load the dataframe that was previously preprocessed
 speeches_df = pd.read_csv('preprocessed_dataframe.csv')
 speeches_df.dropna(subset=['Life Ladder'], inplace=True)
 
-# create the models
-lgbm_model = ltb.LGBMRegressor()
+speeches_df_train, speeches_df_test = train_test_split(speeches_df, test_size=0.2, shuffle=True)
+
 
 # set the list of features to use as well as the predictable
-features = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'average_sentence_length']
+features = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'average_sentence_length', "Log GDP per capita", 'Social support', 'Freedom to make '
+                 'life choices', 'Generosity', 'Perceptions of corruption']
 predictable = ['Life Ladder']
 
 # set the parameters that will be tested in the grid search
 lgbm_grid_params = {
     'learning_rate': [0.005, 0.01],
-    'n_estimators': [8, 16, 24, 28, 50],
-    'num_leaves': [6, 8, 12, 16, 20, 50],  # large num_leaves helps improve accuracy but might lead to over-fitting
-    'boosting_type': ['gbdt', 'dart'],  # for better accuracy -> try dart
+    'n_estimators': [16, 24, 28, 1000],
+    'num_leaves': [12, 16, 20],  # large num_leaves helps improve accuracy but might lead to over-fitting
+    'boosting_type': ['gbdt'],  # for better accuracy -> try dart
     'max_bin': [255, 510, 1020],  # large max_bin helps improve accuracy but might slow down training progress
     'random_state': [500],
     'colsample_bytree': [0.64, 0.65],
@@ -72,13 +99,29 @@ lgbm_grid_params = {
     'reg_lambda': [1, 1.2, 1.4],
 }
 
+
+# create the models
+lgbm_model = lgb.LGBMRegressor()
 n_splits = 5
-k_fold_evaluation(speeches_df, lgbm_model, n_splits, features, predictable)
 
-best_parameters = model_gridsearch(speeches_df, lgbm_model, n_splits, lgbm_grid_params, features, predictable)
+# evaluation before optimisation
+k_fold_evaluation(speeches_df_train, lgbm_model, n_splits, features, predictable)
 
-lgbm_model_optimised = ltb.LGBMRegressor(**best_parameters)
-k_fold_evaluation(speeches_df, lgbm_model_optimised, n_splits, features, predictable)
+test_set_evaluation(speeches_df_train, speeches_df_test, lgbm_model, features, predictable)
+
+# grid search for the best parameters
+# best_parameters = model_gridsearch(speeches_df_train, lgbm_model, n_splits, lgbm_grid_params, features, predictable)
+best_parameters =  {'boosting_type': 'gbdt', 'colsample_bytree': 0.65, 'learning_rate': 0.01, 'max_bin': 1020,
+                   'n_estimators': 1000, 'num_leaves': 20, 'random_state': 500, 'reg_alpha': 1, 'reg_lambda': 1.4, 'subsample': 0.7}
+
+
+# look at increase of scores
+lgbm_model_optimised = lgb.LGBMRegressor(**best_parameters)
+k_fold_evaluation(speeches_df_train, lgbm_model_optimised, n_splits, features, predictable)
+
+# final evalutation on unseen test set
+lgbm_model_optimised_test = lgb.LGBMRegressor(**best_parameters)
+test_set_evaluation(speeches_df_train, speeches_df_test, lgbm_model_optimised_test, features, predictable)
 
 
 
