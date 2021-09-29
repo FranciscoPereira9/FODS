@@ -19,6 +19,7 @@ import seaborn as sns
 from collections import Counter
 from tqdm import tqdm
 from nltk.sentiment import SentimentIntensityAnalyzer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
 # nltk.download('punkt')
@@ -78,6 +79,7 @@ def plot_correlation_matrix(speeches_df, corr_cols):
     sns.heatmap(speeches_df.loc[:, corr_cols].corr(),
                 annot = True, vmin=-1, vmax=1, center= 0)
     plt.show()
+
 
 def count_most_used_words(data, n):
     """
@@ -144,6 +146,31 @@ def open_speech(file_path):
     return data
 
 
+def count_word_occurence(speech, mode):
+    '''
+    Feature vector from unstructured text.
+     - Count encoding, used to represent the frequency of words in a vocabulary for a document
+     - TF-IDF encoding, used to represent normalized word frequency scores in a vocabulary.
+    :param document: iterable object with speech(es)
+    :param mode: string with encoding technique to use. Can be - ['count','tf-idf']
+    :return: returns list with top 20 most important words
+    '''
+
+    speech.apply(preprocess_speech())
+    if mode == 'count':
+        obj = CountVectorizer(lowercase=True, stop_words='english')
+        word_occ = obj.fit_transform(speech)
+    elif mode == 'tf-idf':
+        obj = TfidfVectorizer(lowercase=True, stop_words='english')
+        word_occ = obj.fit_transform(speech)
+
+    text_features = pd.DataFrame(word_occ.toarray(), columns=obj.get_feature_names())
+    # Get the top 10 words per country
+    top10_country = text_features.apply(lambda s, n: pd.Series(s.nlargest(n).index), axis=1, n=10)
+    # Get the top 20 words for the whole year
+    avg_tfidf = text_features.mean(axis=0)
+    top20_year = avg_tfidf.nlargest(20).index
+    return top20_year, top10_country
 
 
 def preprocess_speech(data):
@@ -276,7 +303,7 @@ if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
     # dataframe file (always have to do a preprocessing run to save the dataframe of course)
-    do_preprocessing = True
+    do_preprocessing = False
 
     if do_preprocessing:
         speeches_df = pd.DataFrame(columns=['session_nr', 'year', 'country', 'word_count', 'pos_sentiment',
@@ -344,6 +371,21 @@ if __name__ == '__main__':
 
     # get into the exploration after reading the saved file
     speeches_df = pd.read_csv('preprocessed_dataframe.csv')
+
+    # Create the Dataframe
+    main_words_dict = {}
+    # Lopp through the year
+    for year in range(speeches_df['year'].min(), speeches_df['year'].max()+1):
+        # Select view of the year
+        year_data = speeches_df[speeches_df['year'] == year]
+        # Calculate relevant words
+        dict_y_main_words = count_word_occurence(year_data['speech'], mode='tf-idf')
+        main_words_dict[year] = dict_y_main_words
+
+    main_words_year = pd.DataFrame.from_dict(main_words_dict, columns=[x for x in range(1, 21)], orient='index')
+
+    df_word_occurences = count_word_occurence(speeches_df['speech'], mode='count')
+
 
 
     corr_cols = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'neu_sentiment', 'average_sentence_length',
