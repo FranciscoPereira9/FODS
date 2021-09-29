@@ -152,23 +152,23 @@ def open_speech(file_path):
     return data
 
 
-def count_word_occurence(speech, mode):
+def top10words_percountry(documents, mode):
     '''
     Feature vector from unstructured text.
      - Count encoding, used to represent the frequency of words in a vocabulary for a document
      - TF-IDF encoding, used to represent normalized word frequency scores in a vocabulary.
-    :param document: iterable object with speech(es)
+    :param documents: iterable object with speech(es) ['speech1 from Albania', 'speech 2 from Denmark']
     :param mode: string with encoding technique to use. Can be - ['count','tf-idf']
-    :return: returns list with top 20 most important words
+    :return: returns list with top 10 most important words
     '''
 
     # speech.apply(preprocess_speech())
     if mode == 'count':
         obj = CountVectorizer(lowercase=True, stop_words='english')
-        word_occ = obj.fit_transform(speech)
+        word_occ = obj.fit_transform(documents)
     elif mode == 'tf-idf':
         obj = TfidfVectorizer(lowercase=True, stop_words='english')
-        word_occ = obj.fit_transform(speech)
+        word_occ = obj.fit_transform(documents)
 
     text_features = pd.DataFrame(word_occ.toarray(), columns=obj.get_feature_names())
     # Get the top 10 words per country
@@ -177,7 +177,7 @@ def count_word_occurence(speech, mode):
     avg_tfidf = text_features.mean(axis=0)
     top20_year = avg_tfidf.nlargest(20).index
 
-    return top20_year
+    return top10_country.values.tolist()
 
 
 def preprocess_speech(data):
@@ -201,6 +201,7 @@ def preprocess_speech(data):
             no_sw.append(w)
 
     return no_sw
+
 
 def k_means_clustering(data_df, true_k, elbow_plot):
     """
@@ -350,6 +351,7 @@ def happiness_df_cleanup(happiness_df):
     
     return happiness_df
 
+
 def speeches_df_cleanup(speeches_df):
     '''
     Replace YDYE (yemen) and POR (Portugal) with correct iso_alpho3 code.
@@ -360,10 +362,12 @@ def speeches_df_cleanup(speeches_df):
     speeches_df['country'] = speeches_df['country'].str.replace('YDYE','YEM').replace('POR','PRT')
     return speeches_df
 
+
 def check_countryname_consistency(happiness_df, df_codes):
     happiness_countries = set(happiness_df.reset_index()['Country name'].unique())
     iso_countries = set(df_codes['Country or Area'])
     print(f"The following countries in happiness_df do not appear in iso_countries: {happiness_countries - iso_countries}")
+
 
 def check_isocode_consistency(speeches_df,df_codes):
     speech_codes = set(speeches_df['country'].unique())
@@ -377,7 +381,8 @@ def interpolate(df, col, country):
     minidf = minidf.reset_index()
     minidf.set_index(['year', 'country'], inplace=True)
     return df.update(minidf)
-   
+
+
 def multi_interpolate(df, columns, countries):
     for country in tqdm(countries):
         for column in columns:
@@ -386,6 +391,7 @@ def multi_interpolate(df, columns, countries):
             except:
                 print(f"FAIL: {country} : {column}")
     return df
+
 
 def preprocess_speech_(speech):
     """ This function tokenizes (splits in words and eliminate
@@ -400,6 +406,7 @@ def preprocess_speech_(speech):
         r.append(w.lower())
     return r
 
+
 def count_list_occurences(list, x):
     """ This function counts the number of times an element appears
     in a list
@@ -412,6 +419,7 @@ def count_list_occurences(list, x):
         if x == i:
             counter += 1
     return counter
+
 
 def count_referenced_countries(data, countries, years):
     """ This function iterates over the speeches in the selected years
@@ -513,17 +521,28 @@ if __name__ == '__main__':
     speeches_df = pd.read_csv('preprocessed_dataframe.csv')
 
     # Create the Dataframe
-    main_words_dict = {}
-    # Lopp through the year
+    yearly_speeches_dict = {}
+    top10_aux = []
+    # Loop through the year
     for year in range(speeches_df['year'].min(), speeches_df['year'].max()+1):
         # Select view of the year
         year_data = speeches_df[speeches_df['year'] == year]
-        # Calculate relevant words
-        dict_y_main_words,  = count_word_occurence(year_data['speech'], mode='tf-idf')
-        main_words_dict[year] = dict_y_main_words
+        # Calculate top 10 per year
+        topwords_countryyear = top10words_percountry(year_data['speech'], mode='tf-idf')
+        # Append to Dataframe
+        top10_aux += topwords_countryyear
+        # Aggregate all speeches
+        year_text = ' '.join(speeches_df[speeches_df['year'] == year]['speech'])
+        # Append Dataframe
+        # yearly_speeches_dict[year] = year_text
 
-    main_words_year = pd.DataFrame.from_dict(main_words_dict, columns=[x for x in range(1, 21)], orient='index')
+    # Add column 'top10words' to main df
+    speeches_df['top10words'] = top10_aux
+    # Build df with aggregated speeches from each year
+    #yearly_speeches = pd.DataFrame.from_dict(yearly_speeches_dict, columns=['pp_speech'], orient='index')
 
+
+    # Calculate tf-idf for all years
     #df_word_occurences = count_word_occurence(speeches_df['speech'], mode='count')
 
     # do k_means clustering
