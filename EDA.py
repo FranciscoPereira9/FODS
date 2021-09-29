@@ -10,16 +10,21 @@ import os
 import sys
 import re
 import nltk
+import sklearn
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from sklearn.cluster import KMeans
 from collections import Counter
 from tqdm import tqdm
 from nltk.sentiment import SentimentIntensityAnalyzer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from scipy.spatial.distance import cdist
+from pywsd.utils import lemmatize_sentence
 
 
 # nltk.download('punkt')
@@ -74,10 +79,10 @@ def plot_correlation_matrix(speeches_df, corr_cols):
     :param corr_cols: a list of columns that we cant to calculate the correlation for
     :return:
     """
+    matrix = np.triu(speeches_df.loc[:, corr_cols].corr())
 
     plt.figure()
-    sns.heatmap(speeches_df.loc[:, corr_cols].corr(),
-                annot = True, vmin=-1, vmax=1, center= 0)
+    sns.heatmap(speeches_df.loc[:, corr_cols].corr(), vmin=-1, vmax=1, center= 0, mask=matrix)
     plt.show()
 
 
@@ -195,6 +200,87 @@ def preprocess_speech(data):
 
     return no_sw
 
+def k_means_clustering(data_df, true_k, elbow_plot):
+    """
+    This functions attempts to find the word groups present in the speeches. Here speeches are considered as samples
+    :param data_df: dataframe of all data
+    :return:
+    """
+
+    data_to_cluster = data_df['speech'].values
+    sentences = pd.DataFrame(index=range(8500*200), columns=['sentence'])
+    i = 0
+    for speech_to_split in tqdm(data_to_cluster, desc='lemmatising speech: '):
+        sentences_speech = nltk.sent_tokenize(speech_to_split)
+        print(len(sentences_speech))
+
+        for sentence in sentences_speech:
+            lemmas = lemmatize_sentence(sentence)
+            lemmatized_sentence = ' '.join(word for word in lemmas)
+            sentences.iloc[i,0] = lemmatized_sentence
+
+            i += 1
+
+        if i > 30000:
+            break
+
+    sentences.dropna(inplace=True)
+    print(sentences)
+    sentences.to_csv('lemmatized_sentences.csv', sep=';')
+    data_to_cluster = sentences['sentence'].values
+    # data_to_cluster = [speech_to_split.split('.') for speech_to_split in data_to_cluster]
+    # data_to_cluster = sum(data_to_cluster, [])
+    # data_to_cluster = np.array(data_to_cluster)
+    # print(data_to_cluster)
+
+    # data_to_cluster_tokenised = data_df['speech'].apply(lambda x: nltk.word_tokenize(x))
+
+    vectorizer = TfidfVectorizer(stop_words='english')
+    X = vectorizer.fit_transform(data_to_cluster)
+    # model = KMeans(n_clusters=true_k, init='k-means++', max_iter=300, n_init=1, verbose=1)
+    # model.fit(X)
+    #
+    # order_centroids = model.cluster_centers_.argsort()[:, ::-1]
+    # terms = vectorizer.get_feature_names()
+    #
+    # for i in range(true_k):
+    #     print("Cluster % d:" % i),
+    #     for ind in order_centroids[i, :10]:
+    #         print(' % s' % terms[ind])
+
+
+    if elbow_plot:
+        distortions = []
+        inertias = []
+        mapping1 = {}
+        mapping2 = {}
+        K = np.arange(1, 40, 2)
+
+        for k in tqdm(K, desc='K means elbow plot'):
+            model = KMeans(n_clusters=k, init='random', max_iter=300, n_init=1, verbose=1, tol=1)
+            model.fit(X)
+
+            distortions.append(sum(np.min(sklearn.metrics.pairwise.pairwise_distances(X, model.cluster_centers_,
+                                                'euclidean'), axis=1)) / X.shape[0])
+            inertias.append(model.inertia_)
+
+            mapping1[k] = sum(np.min(sklearn.metrics.pairwise.pairwise_distances(X, model.cluster_centers_,
+                                           'euclidean'), axis=1)) / X.shape[0]
+            mapping2[k] = model.inertia_
+
+        plt.plot(K, distortions, 'bx-')
+        plt.xlabel('Values of K')
+        plt.ylabel('Distortion')
+        plt.title('The Elbow Method using Distortion')
+        plt.show()
+
+        plt.plot(K, inertias, 'bx-')
+        plt.xlabel('Values of K')
+        plt.ylabel('Inertia')
+        plt.title('The Elbow Method using Inertia')
+        plt.show()
+
+
 def determine_average_sentence_length(speech_data):
     sentence_lengths = [len(sentence) for sentence in speech_data.split('\n')]
 
@@ -299,6 +385,53 @@ def multi_interpolate(df, columns, countries):
                 print(f"FAIL: {country} : {column}")
     return df
 
+def preprocess_speech_(speech):
+    """ This function tokenizes (splits in words and eliminate
+    punctuation) and lowercases the speech
+
+    :param file: string
+    :return: list of lowercase words
+    """
+    words = nltk.word_tokenize(speech)
+    r = []
+    for w in words:
+        r.append(w.lower())
+    return r
+
+def count_list_occurences(list, x):
+    """ This function counts the number of times an element appears
+    in a list
+
+    :param file: a list and an element
+    :return: the number of times the element appeared in list
+    """
+    counter = 0
+    for i in list:
+        if x == i:
+            counter += 1
+    return counter
+
+def count_referenced_countries(data, countries, years):
+    """ This function iterates over the speeches in the selected years
+    and counts the number of times each country appeared in each speech,
+    and the number of speeches that mentioned the respective country
+
+    :param file: the dataframe, a list of countries and years
+    :return: the number of references of each country per year and
+    the number of speeches referencing the respective country per year
+    """
+    for y in years:
+        year = data.loc[(y)]
+        year['processed_speech'] = year.apply(lambda row: preprocess_speech_(row['Speech']), axis=1)
+        for i in countries:
+            s = str(i) + "_ref_count_" + str(y)
+            year[s] = year.apply(lambda row: count_list_occurences(row['processed_speech'], i), axis=1) #only looks for usa, not united states, america etc
+            print("# references", i, '(', y, ')', sum(year[s]))
+            s1 = "bool_" + str(i) + "_ref_" + str(y)
+            year[s1] = np.where(year[s]== 0, False, True)
+            print("# speeches referencing", i, '(', y, ')', sum(year[s1]))
+
+
 if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
@@ -307,7 +440,8 @@ if __name__ == '__main__':
 
     if do_preprocessing:
         speeches_df = pd.DataFrame(columns=['session_nr', 'year', 'country', 'word_count', 'pos_sentiment',
-                                            'neu_sentiment', 'neg_sentiment', 'average_sentence_length'])
+                                            'neu_sentiment', 'neg_sentiment', 'average_sentence_length',
+                                            'most_used_words', 'speech'])
 
         num_directories = len(next(os.walk(main_data_dir))[1])
 
@@ -324,6 +458,7 @@ if __name__ == '__main__':
 
                 # open a speech with the correct formatting
                 speech_data = open_speech(os.path.join(root, file))
+                speech_data = remove_line_number(speech_data)
 
                 # preprocess the data
                 preprocessed_bag_of_words = preprocess_speech(speech_data)
@@ -344,9 +479,12 @@ if __name__ == '__main__':
                                                   'neu_sentiment': sentiment_of_speech['neu'],
                                                   'neg_sentiment': sentiment_of_speech['neg'],
                                                   'average_sentence_length': average_sentence_length,
-                                                  'speech': remove_line_number(speech_data)
+                                                  'most_used_words': most_used_words,
+                                                  'speech': speech_data
                                                   },
                                                  ignore_index=True)
+
+
 
         # read in country codes and happiness data
         df_codes = pd.read_csv('UNSD — Methodology.csv', delimiter=',')
@@ -384,12 +522,30 @@ if __name__ == '__main__':
 
     main_words_year = pd.DataFrame.from_dict(main_words_dict, columns=[x for x in range(1, 21)], orient='index')
 
-    df_word_occurences = count_word_occurence(speeches_df['speech'], mode='count')
+    #df_word_occurences = count_word_occurence(speeches_df['speech'], mode='count')
+
+    # do k_means clustering
+    true_k = 8
+    elbow_plot = True
+    k_means_clustering(speeches_df, true_k, elbow_plot)
+    # number of covid and covid synonyms mentions in 2020 speeches
+    # x = df.loc[(2020)]
+    # x['processed_speech'] = x.apply(lambda row: preprocess_speech_(row['Speech']), axis=1)
+    # x['covid'] = x.apply(lambda row: count_list_occurences(row['processed_speech'], 'covid-19')+count_list_occurences(row['processed_speech'], 'corona')+count_list_occurences(row['processed_speech'], 'coronavirus')+count_list_occurences(row['processed_speech'], 'sars-cov-2'), axis=1)
+    # print("# of times coronavirus was mentioned in China's 2020 speech:", x['covid'].loc['CHN'])
+
+    # number of exclamation marks
+    # df['exclamation_marks'] = df.apply(lambda row: row['Speech'].count('!'), axis=1)
+    # print("# of exclamations marks in China's 2020 speech:", df['exclamation_marks'].loc[(2020, 'CHN')])
+
+    # countries_ = ['usa', 'china']
+    # years_ = [2017, 2018, 2019, 2020]
+    # count_referenced_countries(df, countries_, years_) #only looks for usa, not united states, america etc; they can be added to countries_ and then summed tohether
 
 
-
-    corr_cols = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'neu_sentiment', 'average_sentence_length',
-                 "Life Ladder", "Log GDP per capita"]
+    corr_cols = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'neu_sentiment',
+                 'average_sentence_length', "Life Ladder", "Log GDP per capita", 'Social support', 'Freedom to make '
+                 'life choices', 'Generosity', 'Perceptions of corruption']
     plot_correlation_matrix(speeches_df, corr_cols)
 
     # plot some figures from the data
