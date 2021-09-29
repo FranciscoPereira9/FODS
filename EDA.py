@@ -125,6 +125,7 @@ def count_total_words(data):
 
     return word_count
 
+
 def determine_sentiment(data):
     """
     This function determines the sentiment of a string (in this case a speech)
@@ -161,7 +162,7 @@ def count_word_occurence(speech, mode):
     :return: returns list with top 20 most important words
     '''
 
-    speech.apply(preprocess_speech())
+    # speech.apply(preprocess_speech())
     if mode == 'count':
         obj = CountVectorizer(lowercase=True, stop_words='english')
         word_occ = obj.fit_transform(speech)
@@ -175,7 +176,8 @@ def count_word_occurence(speech, mode):
     # Get the top 20 words for the whole year
     avg_tfidf = text_features.mean(axis=0)
     top20_year = avg_tfidf.nlargest(20).index
-    return top20_year, top10_country
+
+    return top20_year
 
 
 def preprocess_speech(data):
@@ -517,7 +519,7 @@ if __name__ == '__main__':
         # Select view of the year
         year_data = speeches_df[speeches_df['year'] == year]
         # Calculate relevant words
-        dict_y_main_words = count_word_occurence(year_data['speech'], mode='tf-idf')
+        dict_y_main_words,  = count_word_occurence(year_data['speech'], mode='tf-idf')
         main_words_dict[year] = dict_y_main_words
 
     main_words_year = pd.DataFrame.from_dict(main_words_dict, columns=[x for x in range(1, 21)], orient='index')
@@ -527,7 +529,7 @@ if __name__ == '__main__':
     # do k_means clustering
     true_k = 8
     elbow_plot = True
-    k_means_clustering(speeches_df, true_k, elbow_plot)
+    #k_means_clustering(speeches_df, true_k, elbow_plot)
     # number of covid and covid synonyms mentions in 2020 speeches
     # x = df.loc[(2020)]
     # x['processed_speech'] = x.apply(lambda row: preprocess_speech_(row['Speech']), axis=1)
