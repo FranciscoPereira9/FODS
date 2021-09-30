@@ -9,6 +9,7 @@ import csv
 import os
 import sys
 import re
+import ast
 import nltk
 import sklearn
 
@@ -114,6 +115,7 @@ def count_specific_words(data, words):
     occ_words_in_question = [occ_words[word] for word in words]
     return occ_words_in_question
 
+
 def count_total_words(data):
     """ This function purely counts the number of words a piece of text
 
@@ -152,7 +154,7 @@ def open_speech(file_path):
     return data
 
 
-def top10words_percountry(documents, mode):
+def top10words_percountry(documents, mode, n=10):
     '''
     Feature vector from unstructured text.
      - Count encoding, used to represent the frequency of words in a vocabulary for a document
@@ -172,12 +174,32 @@ def top10words_percountry(documents, mode):
 
     text_features = pd.DataFrame(word_occ.toarray(), columns=obj.get_feature_names())
     # Get the top 10 words per country
-    top10_country = text_features.apply(lambda s, n: pd.Series(s.nlargest(n).index), axis=1, n=10)
-    # Get the top 20 words for the whole year
-    avg_tfidf = text_features.mean(axis=0)
-    top20_year = avg_tfidf.nlargest(20).index
+    topwords_country = text_features.apply(lambda s, n: pd.Series(s.nlargest(n).index), axis=1, n=n)
 
-    return top10_country.values.tolist()
+    return topwords_country.values.tolist()
+
+
+def topnwords_peryear(documents, mode, n=10):
+    '''
+    Vectorizes documents from all years and calculates most important words based on the preferred method.
+    :param documents: list with the speeches per year
+    :param mode: string with encoding technique to use. Can be - ['count','tf-idf']
+    :return: n most important words per year
+    '''
+    # speech.apply(preprocess_speech())
+    if mode == 'count':
+        obj = CountVectorizer(lowercase=True, stop_words='english')
+        word_occ = obj.fit_transform(documents)
+    elif mode == 'tf-idf':
+        obj = TfidfVectorizer(lowercase=True, stop_words='english')
+        word_occ = obj.fit_transform(documents)
+    text_features = pd.DataFrame(word_occ.toarray(), columns=obj.get_feature_names())
+    # Get the top 10 words per country
+    topwords_year = text_features.apply(lambda s, n: pd.Series(s.nlargest(n).index), axis=1, n=n)
+    # Get the top 20 words for the whole year
+    #avg_tfidf = text_features.mean(axis=0)
+    return topwords_year.values.tolist()
+
 
 def topnwords_perspeech(documents, mode, n=100):
 
@@ -194,6 +216,7 @@ def topnwords_perspeech(documents, mode, n=100):
     top10_country = text_features.apply(lambda s, n: pd.Series(s.nlargest(n).index), axis=1, n=n)
 
     return top10_country.values.tolist()
+
 
 def filter_common_words(words):
     common_words = ['united', 'nations', 'country','countries','viet','nam', 'state', 'assembly','today','netherlands','states','general', 'israeli','people', 'world','peoples', 'region', 'international','syria', 'syrian', 'new']
@@ -461,6 +484,8 @@ def count_referenced_countries(data, countries, years):
             print("# speeches referencing", i, '(', y, ')', sum(year[s1]))
 
 
+
+
 if __name__ == '__main__':
 
     # True --> run preprocessing and save the results, False --> just do the data analysis with your previously saved
@@ -538,31 +563,30 @@ if __name__ == '__main__':
 
     # get into the exploration after reading the saved file
     speeches_df = pd.read_csv('preprocessed_dataframe.csv')
+    # Turn preprocessed speech into text
+    speeches_df['preprocessed_speech'] = speeches_df['preprocessed_speech'].apply(lambda x: " ".join(ast.literal_eval(x)))
 
-    # Create the Dataframe
-    yearly_speeches_dict = {}
+    # Create the Empty Lists
     top10_aux = []
-    # Loop through the year
+    texts_over_years = []
+    # Loop through the years
     for year in range(speeches_df['year'].min(), speeches_df['year'].max()+1):
         # Select view of the year
         year_data = speeches_df[speeches_df['year'] == year]
         # Calculate top 10 per year
-        topwords_countryyear = top10words_percountry(year_data['speech'], mode='tf-idf')
+        topwords_countryyear = top10words_percountry(year_data['preprocessed_speech'], mode='tf-idf')
         # Append to Dataframe
-        top10_aux += topwords_countryyear
+        top10_aux.append(topwords_countryyear)
         # Aggregate all speeches
         year_text = ' '.join(speeches_df[speeches_df['year'] == year]['speech'])
         # Append Dataframe
-        # yearly_speeches_dict[year] = year_text
+        texts_over_years.append(year_text)
 
-    # Add column 'top10words' to main df
+    # Add column 'top10words' to main df for each speech
     speeches_df['top10words'] = top10_aux
-    # Build df with aggregated speeches from each year
-    #yearly_speeches = pd.DataFrame.from_dict(yearly_speeches_dict, columns=['pp_speech'], orient='index')
-
-
-    # Calculate tf-idf for all years
-    #df_word_occurences = count_word_occurence(speeches_df['speech'], mode='count')
+    # Get main words throughout all years
+    words_over_years_df = pd.DataFrame({'years': [x for x in range(1970,2021)],
+                                        'topwords': topnwords_peryear(texts_over_years, mode='tf-idf', n=10)})
 
     # do k_means clustering
     true_k = 8
@@ -621,7 +645,7 @@ if __name__ == '__main__':
 
     #plotting how most common words evolve over years per country
     
-     import matplotlib.cm as cm
+
 
 fig, axs = plt.subplots(2,2,  sharey=True, figsize = (13,13))
 for i, country in enumerate(['SYR', 'USA', 'NLD','VNM']):
