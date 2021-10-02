@@ -217,6 +217,12 @@ def topnwords_perspeech(documents, mode, n=100):
 
     return top10_country.values.tolist()
 
+def get_index(mylist, value):
+    try:
+        index = mylist.index(value)
+    except:
+        index = np.nan
+    return index
 
 def filter_common_words(words):
     common_words = ['united', 'nations', 'country','countries','viet','nam', 'state', 'assembly','today','netherlands',
@@ -650,31 +656,29 @@ if __name__ == '__main__':
     plt.show()
 
     #plotting how most common words evolve over years per country
-    
 
-
-fig, axs = plt.subplots(2,2,  sharey=True, figsize = (13,13))
-for i, country in enumerate(['SYR', 'USA', 'NLD','VNM']):
-#     try:
-        ax = axs.flatten()[i]
-        times = np.arange(2010,2021)
-        top_per_year_country= topnwords_perspeech([speeches_df.loc[(year, country)]['speech'].values[-1] for year in times], 'tf-idf', n=100)
-        #take all speeches of a specific country
-        merged_speeches = " ".join(speeches_df.xs(country, level='country')['speech'].values)
-        top_allyears = topnwords_perspeech([merged_speeches], 'tf-idf', n=100)
-        top_allyears = [filter_common_words(top_allyears[0])]
-        score_dict = {}
-        for word in top_allyears[0][:8]:
-            indices = [100-get_index(top_per_year_country[i],word) for i in range(len(top_per_year_country))]
-            score_dict[word] = indices
-        for word in score_dict.keys():
-#             None
-            size = [0  if np.isnan(n) else n for n in score_dict[word]] 
-            ax.scatter(times, score_dict[word], label = word, s=size)
-        ax.legend()
-        ax.set_xlabel("Year")
-        ax.set_ylabel("Score")
-        ax.set_title(country)
-#     except:
-        pass
-plt.show()
+    fig, axs = plt.subplots(2,2,  sharey=True, figsize = (13,13))
+    for i, country in enumerate(['SYR', 'USA', 'NLD','VNM']):
+    #     try:
+            ax = axs.flatten()[i]
+            times = np.arange(2010,2021)
+            top_per_year_country= topnwords_perspeech([speeches_df[(speeches_df['year']==year) & (speeches_df['country'] == country)]['speech'].values[-1] for year in times], 'tf-idf', n=100)
+            #take all speeches of a specific country
+            merged_speeches = " ".join(speeches_df[speeches_df['country'] == country]['preprocessed_speech'].values)
+            top_allyears = topnwords_perspeech([merged_speeches], 'tf-idf', n=100)
+            top_allyears = [filter_common_words(top_allyears[0])]
+            score_dict = {}
+            for word in top_allyears[0][:8]:
+                indices = [100-get_index(top_per_year_country[i],word) for i in range(len(top_per_year_country))]
+                score_dict[word] = indices
+            for word in score_dict.keys():
+    #             None
+                size = [0  if np.isnan(n) else n for n in score_dict[word]] 
+                ax.scatter(times, score_dict[word], label = word, s=size)
+            ax.legend()
+            ax.set_xlabel("Year")
+            ax.set_ylabel("Score")
+            ax.set_title(country)
+    #     except:
+            pass
+    plt.show()
