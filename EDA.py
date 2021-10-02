@@ -226,6 +226,7 @@ def filter_common_words(words):
                      'people', 'government', 'general', 'one', 'state', 'time', 'us', 'development']
     return [word for word in words if word not in common_words1]
 
+
 def preprocess_speech(data):
     """
     This function does the preprocessing
