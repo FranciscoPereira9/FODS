@@ -26,7 +26,7 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.spatial.distance import cdist
 from pywsd.utils import lemmatize_sentence
-
+from nltk.probability import FreqDist
 
 # nltk.download('punkt')
 # nltk.download('stopwords')
@@ -219,8 +219,12 @@ def topnwords_perspeech(documents, mode, n=100):
 
 
 def filter_common_words(words):
-    common_words = ['united', 'nations', 'country','countries','viet','nam', 'state', 'assembly','today','netherlands','states','general', 'israeli','people', 'world','peoples', 'region', 'international','syria', 'syrian', 'new']
-    return [word for word in words if word not in common_words]
+    common_words = ['united', 'nations', 'country','countries','viet','nam', 'state', 'assembly','today','netherlands',
+                    'states','general', 'israeli','people', 'world','peoples', 'region', 'international','syria',
+                    'syrian', 'new']
+    common_words1 = ['united', 'nation', 'international', 'world', 'country', 'states', 'organization', 'would',
+                     'people', 'government', 'general', 'one', 'state', 'time', 'us', 'development']
+    return [word for word in words if word not in common_words1]
 
 def preprocess_speech(data):
     """
@@ -564,7 +568,8 @@ if __name__ == '__main__':
     # get into the exploration after reading the saved file
     speeches_df = pd.read_csv('preprocessed_dataframe.csv')
     # Turn preprocessed speech into text
-    speeches_df['preprocessed_speech'] = speeches_df['preprocessed_speech'].apply(lambda x: " ".join(ast.literal_eval(x)))
+    speeches_df['preprocessed_speech'] = speeches_df['preprocessed_speech'].apply(lambda x: " ".join(filter_common_words(ast.literal_eval(x))))
+
 
     # Create the Empty Lists
     top10_aux = []
@@ -576,22 +581,22 @@ if __name__ == '__main__':
         # Calculate top 10 per year
         topwords_countryyear = top10words_percountry(year_data['preprocessed_speech'], mode='tf-idf')
         # Append to Dataframe
-        top10_aux.append(topwords_countryyear)
+        top10_aux += topwords_countryyear
         # Aggregate all speeches
-        year_text = ' '.join(speeches_df[speeches_df['year'] == year]['speech'])
+        year_text = ' '.join(speeches_df[speeches_df['year'] == year]['preprocessed_speech'])
         # Append Dataframe
         texts_over_years.append(year_text)
 
     # Add column 'top10words' to main df for each speech
     speeches_df['top10words'] = top10_aux
     # Get main words throughout all years
-    words_over_years_df = pd.DataFrame({'years': [x for x in range(1970,2021)],
-                                        'topwords': topnwords_peryear(texts_over_years, mode='tf-idf', n=10)})
+    words_over_years_df = pd.DataFrame({'years': [x for x in range(1970, 2021)],
+                                        'topwords': topnwords_peryear(texts_over_years, mode='tf-idf', n=20)})
 
     # do k_means clustering
     true_k = 8
     elbow_plot = True
-    #k_means_clustering(speeches_df, true_k, elbow_plot)
+    # k_means_clustering(speeches_df, true_k, elbow_plot)
     # number of covid and covid synonyms mentions in 2020 speeches
     # x = df.loc[(2020)]
     # x['processed_speech'] = x.apply(lambda row: preprocess_speech_(row['Speech']), axis=1)
