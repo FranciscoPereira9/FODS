@@ -27,6 +27,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.spatial.distance import cdist
 from pywsd.utils import lemmatize_sentence
 from nltk.probability import FreqDist
+from PIL import Image
+from wordcloud import WordCloud, ImageColorGenerator, STOPWORDS
 
 # nltk.download('punkt')
 # nltk.download('stopwords')
@@ -346,13 +348,13 @@ def determine_average_sentence_length(speech_data):
 def remove_line_number(speech):
     '''
     removes the line number at the beginning of speech
-    
+
     Parameters
     ---------
     speech : str
         piece of text
      '''
-    
+
     pattern = "\n|^\d+.*?(\w)"
     speech = re.sub(pattern, "\n\g<1>", speech)
     pattern = "\t"
@@ -361,20 +363,20 @@ def remove_line_number(speech):
     speech = re.sub(pattern, "\n", speech)
     pattern = "^\n *"
     speech = re.sub(pattern, "", speech)
-    
+
     return speech
 
 
-def happiness_df_cleanup(happiness_df):    
+def happiness_df_cleanup(happiness_df):
     '''
     Creating a dictionary to map the wrong countries name in
-    happiness dataframe with correct country name. This is because 
-    we need to merge happiness dataframe with speeches dataframe 
+    happiness dataframe with correct country name. This is because
+    we need to merge happiness dataframe with speeches dataframe
     using country name. And we found cases where country names are
-    not the same between these two data set. 
+    not the same between these two data set.
     See function check_countryname_consistency as well.
     '''
-    
+
     country_mapping = {
         'Vietnam' : 'Viet Nam',
         'Moldova' :  'Republic of Moldova',
@@ -399,16 +401,16 @@ def happiness_df_cleanup(happiness_df):
         'Venezuela': 'Venezuela (Bolivarian Republic of)',
          'Iran': 'Iran (Islamic Republic of)',
          'Congo (Brazzaville)' :  'Congo'}
-    # Replace the country names in happiness dataframe with the correct country names in df-codes. 
+    # Replace the country names in happiness dataframe with the correct country names in df-codes.
     happiness_df = happiness_df.reset_index().replace({'Country name': country_mapping} ).set_index(['Country name', 'year'])
-    
+
     return happiness_df
 
 
 def speeches_df_cleanup(speeches_df):
     '''
     Replace YDYE (yemen) and POR (Portugal) with correct iso_alpho3 code.
-    The remaing 'DDR', 'YUG', 'EU', 'CSK' are not considered countries by 
+    The remaing 'DDR', 'YUG', 'EU', 'CSK' are not considered countries by
     the UN or don't exist anymore, so we can consider removing them out of
     dataset because we don't have happiness data for these "countries".
     '''
@@ -426,8 +428,8 @@ def check_isocode_consistency(speeches_df,df_codes):
     speech_codes = set(speeches_df['country'].unique())
     iso_codes = set(df_codes['ISO-alpha3 Code'].unique())
     print(f"The following codes in speeches_df do not appear in df_codes: {speech_codes - iso_codes}")
-    
-    
+
+
 def interpolate(df, col, country):
     minidf = pd.DataFrame({col : df[col].loc[:,country].interpolate(method='slinear')})
     minidf['country'] = country
@@ -494,8 +496,21 @@ def count_referenced_countries(data, countries, years):
             year[s1] = np.where(year[s]== 0, False, True)
             print("# speeches referencing", i, '(', y, ')', sum(year[s1]))
 
+def generate_wordcloud(important_words, year):
+    '''
+    Generate word cloud from list of most important words. Plots it.
+    :param important_words: list with the top words.
+    :return: image
+    '''
 
+    word_counter = Counter(important_words)
+    wordcloud = WordCloud(background_color="white").generate_from_frequencies(word_counter)
+    plt.imshow(wordcloud)
+    plt.axis("off")
+    plt.title(str(year))
+    plt.show()
 
+    return wordcloud
 
 if __name__ == '__main__':
 
@@ -565,7 +580,7 @@ if __name__ == '__main__':
 
         speeches_df = speeches_df.merge(df_codes, how='left', left_on='country', right_on='ISO-alpha3 Code')
 
-        # add the happiness dataframe to the  
+        # add the happiness dataframe to the
 
         speech_happi_merged_df = pd.merge(speeches_df, happiness_df, how='left',
                                           left_on=['year', 'Country or Area'], right_on=['year', 'Country name'])
@@ -600,6 +615,13 @@ if __name__ == '__main__':
     words_over_years_df = pd.DataFrame({'years': [x for x in range(1970, 2021)],
                                         'topwords': topnwords_peryear(texts_over_years, mode='tf-idf', n=20)})
 
+
+    #Generate Wordclouds for different years
+    for year in range(2016,2021):
+        year_words = words_over_years_df[words_over_years_df.years == year]['topwords'].values
+        generate_wordcloud(year_words[0], year)
+
+
     # do k_means clustering
     true_k = 8
     elbow_plot = True
@@ -628,13 +650,13 @@ if __name__ == '__main__':
     plot_sentiment_country_vs_year('NLD')
     plot_sentiment_country_vs_year('USA')
 
-    
+
     # interpolation for missing values in happiness df columns
 
     countries = speeches_df.reset_index()['country'].unique()
     cols = ['Life Ladder', 'Log GDP per capita', 'Social support',
             'Healthy life expectancy at birth', 'Freedom to make life choices',
-            'Generosity', 'Perceptions of corruption', 'Positive affect', 
+            'Generosity', 'Perceptions of corruption', 'Positive affect',
             'Negative affect']
 
     speeches_df.set_index(['year','country'], inplace=True)
@@ -673,7 +695,7 @@ if __name__ == '__main__':
                 score_dict[word] = indices
             for word in score_dict.keys():
     #             None
-                size = [0  if np.isnan(n) else n for n in score_dict[word]] 
+                size = [0  if np.isnan(n) else n for n in score_dict[word]]
                 ax.scatter(times, score_dict[word], label = word, s=size)
             ax.legend()
             ax.set_xlabel("Year")
