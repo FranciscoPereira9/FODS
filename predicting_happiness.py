@@ -1,4 +1,6 @@
 import os
+from textwrap import wrap
+
 import numpy as np
 import pandas as pd
 import lightgbm as lgb
@@ -71,22 +73,32 @@ def test_set_evaluation(speeches_df_train, speeches_df_test, model_test, feature
 
     print('Plot metrics during training...')
     ax = lgb.plot_metric(model_test.evals_result_, metric='l2', figsize=(10, 5), title=None)
-    ax.set_ylabel('L2', fontsize=20)
-    ax.set_xlabel('Iterations', fontsize=20)
-    ax.xaxis.set_tick_params(labelsize=20)
-    ax.yaxis.set_tick_params(labelsize=20)
-    ax.legend(['Validation set', 'Training set'], fontsize=20)
+    ax.lines[0].set_linewidth(5)
+    ax.lines[1].set_linewidth(5)
+    ax.set_ylabel('L2', fontsize=25)
+    ax.set_xlabel('Iterations', fontsize=25)
+    ax.xaxis.set_tick_params(labelsize=25)
+    ax.yaxis.set_tick_params(labelsize=25)
+    ax.legend(['Validation set', 'Training set'], fontsize=25)
     plt.tight_layout()
     plt.savefig('metric_over_training.png', dpi=300)
     plt.show()
 
     plt.figure()
-    ax1 = lgb.plot_importance(model_test, max_num_features=10, figsize = (10,10), title=None)
-    ax.set_ylabel('Features', fontsize=20)
-    ax.set_xlabel('Feature importance', fontsize=20)
-    ax.xaxis.set_tick_params(labelsize=20)
-    ax.yaxis.set_tick_params(labelsize=20)
-    ax.legend(['Validation set', 'Training set'], fontsize=20)
+    ind = np.arange(0.5, 5.5, 0.5)
+    feature_imp = pd.DataFrame(sorted(zip(model_test.feature_importances_, speeches_df_train[features].columns)), columns=['Value', 'Feature'])
+    print(feature_imp)
+
+    # ax1 = lgb.plot_importance(model_test, max_num_features=10, figsize=(15,20), title=None, annotate=False)
+    ax1 = feature_imp.iloc[-10:].plot.barh(x="Feature", y="Value")
+    ticklabels = feature_imp.iloc[-10:]['Feature'].tolist()
+    ticklabels = ['\n'.join(wrap(l, 13)) for l in ticklabels]
+    ax1.get_legend().remove()
+    ax1.set_yticklabels(ticklabels)
+    ax1.set_ylabel('Features', fontsize=20)
+    ax1.set_xlabel('Feature importance', fontsize=20)
+    ax1.xaxis.set_tick_params(labelsize=20)
+    ax1.yaxis.set_tick_params(labelsize=20)
     plt.tight_layout()
     plt.savefig('feature_importance.png', dpi=300)
     plt.show()
@@ -107,8 +119,8 @@ for i, row in speeches_df.iterrows():
 
 features_most_used_words = [word.encode("ascii", "ignore").decode() for word in list(most_used_words)]
 
-
-print(most_used_words)
+print(features_most_used_words)
+# print(most_used_words)
 speeches_df[features_most_used_words] = 0
 
 for i, row in tqdm(speeches_df.iterrows()):
@@ -116,6 +128,8 @@ for i, row in tqdm(speeches_df.iterrows()):
         speeches_df.loc[i, word.encode("ascii", "ignore").decode()] = 1
 
 print(speeches_df.head())
+
+speeches_df.to_csv('speeches_df_1hotencoded_top10words.csv')
 
 speeches_df_train, speeches_df_test = train_test_split(speeches_df, test_size=0.2, shuffle=True, random_state=42)
 

@@ -63,14 +63,19 @@ def plot_sentiment_country_vs_year(country_code):
     plt.figure()
     plt.title('{} speech sentiment'.format(country_code))
     plt.plot(speeches_df.loc[speeches_df['country'] == country_code]['year'],
-             speeches_df.loc[speeches_df['country'] == country_code]['pos_sentiment'], label='positive')
+             speeches_df.loc[speeches_df['country'] == country_code]['pos_sentiment'], label='positive', color='green')
+    # plt.plot(speeches_df.loc[speeches_df['country'] == country_code]['year'],
+    #          speeches_df.loc[speeches_df['country'] == country_code]['neu_sentiment'], label='neutral')
     plt.plot(speeches_df.loc[speeches_df['country'] == country_code]['year'],
-             speeches_df.loc[speeches_df['country'] == country_code]['neu_sentiment'], label='neutral')
-    plt.plot(speeches_df.loc[speeches_df['country'] == country_code]['year'],
-             speeches_df.loc[speeches_df['country'] == country_code]['neg_sentiment'], label='negative')
+             speeches_df.loc[speeches_df['country'] == country_code]['neg_sentiment'], label='negative', color='red')
     plt.legend()
-    plt.xlabel('Time (year)', fontsize=14)
-    plt.ylabel('Sentiment', fontsize=14)
+    plt.vlines(2011, ymin=0, ymax=0.25, colors='blue', linestyles='--')
+    plt.ylim(0, 0.25)
+    plt.xlim(1970, 2020)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.xlabel('Time (year)', fontsize=16)
+    plt.ylabel('Sentiment', fontsize=16)
     plt.savefig('{}_sentiment_development.png'.format(country_code), dpi=300)
     plt.show()
 
@@ -87,12 +92,14 @@ def plot_sentiment_over_year():
     plt.figure()
     plt.title('average speech sentiment')
     plt.plot(speeches_df.groupby('year')['pos_sentiment'].mean().index,
-             speeches_df.groupby('year')['pos_sentiment'].mean(), label='positive')
+             speeches_df.groupby('year')['pos_sentiment'].mean(), label='positive', color='green')
+    # plt.plot(speeches_df.groupby('year')['pos_sentiment'].mean().index,
+    #          speeches_df.groupby('year')['neu_sentiment'].mean(), label='neutral')
     plt.plot(speeches_df.groupby('year')['pos_sentiment'].mean().index,
-             speeches_df.groupby('year')['neu_sentiment'].mean(), label='neutral')
-    plt.plot(speeches_df.groupby('year')['pos_sentiment'].mean().index,
-             speeches_df.groupby('year')['neg_sentiment'].mean(), label='negative')
+             speeches_df.groupby('year')['neg_sentiment'].mean(), label='negative', color='red')
     plt.legend()
+    plt.ylim(0, 0.25)
+    plt.xlim(1970, 2020)
     plt.xlabel('Time (year)', fontsize=14)
     plt.ylabel('Sentiment', fontsize=14)
     plt.savefig('average_sentiment_development.png', dpi=300)
@@ -631,35 +638,35 @@ if __name__ == '__main__':
     speeches_df['preprocessed_speech'] = speeches_df['preprocessed_speech'].apply(lambda x: " ".join(filter_common_words(ast.literal_eval(x))))
 
 
-    # Create the Empty Lists
-    top10_aux = []
-    texts_over_years = []
-    # Loop through the years
-    for year in range(speeches_df['year'].min(), speeches_df['year'].max()+1):
-        # Select view of the year
-        year_data = speeches_df[speeches_df['year'] == year]
-        # Calculate top 10 per year
-        topwords_countryyear = top10words_percountry(year_data['preprocessed_speech'], mode='tf-idf')
-        # Append to Dataframe
-        top10_aux += topwords_countryyear
-        # Aggregate all speeches
-        year_text = ' '.join(speeches_df[speeches_df['year'] == year]['preprocessed_speech'])
-        # Append Dataframe
-        texts_over_years.append(year_text)
-
-    # Add column 'top10words' to main df for each speech
-    speeches_df['top10words'] = top10_aux
-    # Get main words throughout all years
-    words_over_years_df = pd.DataFrame({'years': [x for x in range(1970, 2021)],
-                                        'topwords': topnwords_peryear(texts_over_years, mode='tf-idf', n=20)})
-
-    speeches_df.to_csv('preprocessed_dataframe_top10.csv')
-    speeches_df.to_pickle('preprocessed_dataframe_top10.pkl')
-
-    #Generate Wordclouds for different years
-    for year in range(2016,2021):
-        year_words = words_over_years_df[words_over_years_df.years == year]['topwords'].values
-        generate_wordcloud(year_words[0], year)
+    # # Create the Empty Lists
+    # top10_aux = []
+    # texts_over_years = []
+    # # Loop through the years
+    # for year in range(speeches_df['year'].min(), speeches_df['year'].max()+1):
+    #     # Select view of the year
+    #     year_data = speeches_df[speeches_df['year'] == year]
+    #     # Calculate top 10 per year
+    #     topwords_countryyear = top10words_percountry(year_data['preprocessed_speech'], mode='tf-idf')
+    #     # Append to Dataframe
+    #     top10_aux += topwords_countryyear
+    #     # Aggregate all speeches
+    #     year_text = ' '.join(speeches_df[speeches_df['year'] == year]['preprocessed_speech'])
+    #     # Append Dataframe
+    #     texts_over_years.append(year_text)
+    #
+    # # Add column 'top10words' to main df for each speech
+    # speeches_df['top10words'] = top10_aux
+    # # Get main words throughout all years
+    # words_over_years_df = pd.DataFrame({'years': [x for x in range(1970, 2021)],
+    #                                     'topwords': topnwords_peryear(texts_over_years, mode='tf-idf', n=20)})
+    #
+    # speeches_df.to_csv('preprocessed_dataframe_top10.csv')
+    # speeches_df.to_pickle('preprocessed_dataframe_top10.pkl')
+    #
+    # #Generate Wordclouds for different years
+    # for year in range(2016,2021):
+    #     year_words = words_over_years_df[words_over_years_df.years == year]['topwords'].values
+    #     generate_wordcloud(year_words[0], year)
 
 
     # do k_means clustering
@@ -688,8 +695,8 @@ if __name__ == '__main__':
     # sentiment_correlation_countries(speeches_df)
 
     # plot some figures from the data
-    plot_sentiment_country_vs_year('NLD')
-    plot_sentiment_country_vs_year('USA')
+    plot_sentiment_country_vs_year('SYR')
+    # plot_sentiment_country_vs_year('USA')
 
     plot_sentiment_over_year()
 
