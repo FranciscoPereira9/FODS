@@ -74,6 +74,30 @@ def plot_sentiment_country_vs_year(country_code):
     plt.savefig('{}_sentiment_development.png'.format(country_code), dpi=300)
     plt.show()
 
+def plot_sentiment_over_year():
+    """
+    This function plots the sentiment scores of a specific country over the years
+    :param country_code: the code of the country that you want the sentiment development plot for
+    :return:
+    """
+
+    print(speeches_df.groupby('year')['pos_sentiment'].mean().index)
+    print(speeches_df.groupby('year')['pos_sentiment'].mean())
+
+    plt.figure()
+    plt.title('average speech sentiment')
+    plt.plot(speeches_df.groupby('year')['pos_sentiment'].mean().index,
+             speeches_df.groupby('year')['pos_sentiment'].mean(), label='positive')
+    plt.plot(speeches_df.groupby('year')['pos_sentiment'].mean().index,
+             speeches_df.groupby('year')['neu_sentiment'].mean(), label='neutral')
+    plt.plot(speeches_df.groupby('year')['pos_sentiment'].mean().index,
+             speeches_df.groupby('year')['neg_sentiment'].mean(), label='negative')
+    plt.legend()
+    plt.xlabel('Time (year)', fontsize=14)
+    plt.ylabel('Sentiment', fontsize=14)
+    plt.savefig('average_sentiment_development.png', dpi=300)
+    plt.show()
+
 
 def plot_correlation_matrix(speeches_df, corr_cols):
     """
@@ -85,7 +109,17 @@ def plot_correlation_matrix(speeches_df, corr_cols):
     matrix = np.triu(speeches_df.loc[:, corr_cols].corr())
 
     plt.figure()
-    sns.heatmap(speeches_df.loc[:, corr_cols].corr(), vmin=-1, vmax=1, center= 0, mask=matrix)
+    sns.heatmap(speeches_df.groupby('country').loc[:, corr_cols].corr(), vmin=-1, vmax=1, center= 0, mask=matrix)
+    plt.show()
+
+def sentiment_correlation_countries(speeches_df):
+
+    print(speeches_df['pos_sentiment'])
+
+    pos_sent_df = pd.DataFrame()
+
+    plt.figure()
+    sns.heatmap(speeches_df.groupby('country').loc[:, 'pos_sentiment'].corr(), vmin=-1, vmax=1, center= 0)
     plt.show()
 
 
@@ -245,8 +279,12 @@ def preprocess_speech(data):
     # put all characters in lower case
     data = data.lower()
 
-    # only keep the tokens of the data
-    data = nltk.word_tokenize(data)
+    # sentences_speech = nltk.sent_tokenize(data)
+
+    # lemmatised_data = []
+
+    data = lemmatize_sentence(data)
+        # lemmatised_data.append(lemmas)
 
     # remove stop words and non-alphabetic stuff from all the text
     sw = nltk.corpus.stopwords.words("english")
@@ -256,7 +294,6 @@ def preprocess_speech(data):
             no_sw.append(w)
 
     return no_sw
-
 
 def k_means_clustering(data_df, true_k, elbow_plot):
     """
@@ -521,7 +558,7 @@ if __name__ == '__main__':
     if do_preprocessing:
         speeches_df = pd.DataFrame(columns=['session_nr', 'year', 'country', 'word_count', 'pos_sentiment',
                                             'neu_sentiment', 'neg_sentiment', 'average_sentence_length',
-                                            'most_used_words', 'speech'])
+                                            'most_used_words', 'speech', 'preprocessed_speech'])
 
         num_directories = len(next(os.walk(main_data_dir))[1])
 
@@ -553,14 +590,15 @@ if __name__ == '__main__':
                 # append the line of features to the dataframe
                 speeches_df = speeches_df.append({'session_nr': int(session_nr),
                                                   'year': int(year),
-                                                  'country':country,
-                                                  'word_count':word_count,
+                                                  'country': country,
+                                                  'word_count': word_count,
                                                   'pos_sentiment': sentiment_of_speech['pos'],
                                                   'neu_sentiment': sentiment_of_speech['neu'],
                                                   'neg_sentiment': sentiment_of_speech['neg'],
                                                   'average_sentence_length': average_sentence_length,
                                                   'most_used_words': most_used_words,
-                                                  'speech': speech_data
+                                                  'speech': speech_data,
+                                                  'preprocessed_speech': preprocessed_bag_of_words
                                                   },
                                                  ignore_index=True)
 
@@ -615,6 +653,8 @@ if __name__ == '__main__':
     words_over_years_df = pd.DataFrame({'years': [x for x in range(1970, 2021)],
                                         'topwords': topnwords_peryear(texts_over_years, mode='tf-idf', n=20)})
 
+    speeches_df.to_csv('preprocessed_dataframe_top10.csv')
+    speeches_df.to_pickle('preprocessed_dataframe_top10.pkl')
 
     #Generate Wordclouds for different years
     for year in range(2016,2021):
@@ -641,14 +681,17 @@ if __name__ == '__main__':
     # count_referenced_countries(df, countries_, years_) #only looks for usa, not united states, america etc; they can be added to countries_ and then summed tohether
 
 
-    corr_cols = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'neu_sentiment',
-                 'average_sentence_length', "Life Ladder", "Log GDP per capita", 'Social support', 'Freedom to make '
-                 'life choices', 'Generosity', 'Perceptions of corruption']
-    plot_correlation_matrix(speeches_df, corr_cols)
+    # corr_cols = ['year', 'word_count', 'pos_sentiment', 'neg_sentiment', 'neu_sentiment',
+    #              'average_sentence_length', "Life Ladder", "Log GDP per capita", 'Social support', 'Freedom to make '
+    #              'life choices', 'Generosity', 'Perceptions of corruption']
+    # plot_correlation_matrix(speeches_df, corr_cols)
+    # sentiment_correlation_countries(speeches_df)
 
     # plot some figures from the data
     plot_sentiment_country_vs_year('NLD')
     plot_sentiment_country_vs_year('USA')
+
+    plot_sentiment_over_year()
 
 
     # interpolation for missing values in happiness df columns
@@ -659,7 +702,7 @@ if __name__ == '__main__':
             'Generosity', 'Perceptions of corruption', 'Positive affect',
             'Negative affect']
 
-    speeches_df.set_index(['year','country'], inplace=True)
+    speeches_df.set_index(['year', 'country'], inplace=True)
 
     #plot before interpolating
     fig, axs = plt.subplots()
