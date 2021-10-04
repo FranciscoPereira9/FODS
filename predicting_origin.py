@@ -145,17 +145,19 @@ regions = ['Africa', 'Americas', 'Asia', 'Europe']
 
 fig, ax = plt.subplots()
 ax.imshow(mat, cmap='viridis', interpolation='nearest')
-ax.set_xlabel('predicted value')
-ax.set_ylabel('true value');
+ax.set_xlabel('predicted value', fontsize=24)
+ax.set_ylabel('true value', fontsize=24);
 ax.set_xticks([0,1,2,3])
 ax.set_yticks([0,1,2,3])
-ax.set_xticklabels(regions, rotation='vertical')
+ax.set_xticklabels(regions, rotation=45)
 ax.set_yticklabels(regions)
+ax.tick_params(axis='both', which='major', labelsize=34)
 
 # Loop over data to create text annotations.
 for i in range(len(mat)):
     for j in range(len(mat)):
         text = ax.text(j, i, mat[i, j],
-                       ha="center", va="center", color="w", size=20)
+                       ha="center", va="center", color="w", size=45)
 
+# plt.savefig('cm.png', dpi=300)
 plt.show()
